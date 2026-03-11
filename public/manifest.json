@@ -1,7 +1,7 @@
 {
-  "name": "プラットフォームファイター",
-  "short_name": "PF Fighter",
-  "description": "2Dスマブラ風バトルゲーム",
+  "name": "STAR BRAWLERS: ARENA UNBOUND",
+  "short_name": "Star Brawlers",
+  "description": "2D platform fighter battle game",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

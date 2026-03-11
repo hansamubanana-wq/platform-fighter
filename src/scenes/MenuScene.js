@@ -19,7 +19,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     // タイトル
-    this.add.text(width / 2, height * 0.3, 'PLATFORM FIGHTER', {
+    this.add.text(width / 2, height * 0.28, 'STAR BRAWLERS', {
       fontSize: '120px',
       fontFamily: '"Segoe UI", "Noto Sans JP", sans-serif',
       fontStyle: 'bold',
@@ -29,10 +29,14 @@ export class MenuScene extends Phaser.Scene {
       shadow: { blur: 10, color: '#000000', fill: true }
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, height * 0.45, '2Dスマブラ風バトル', {
-      fontSize: '40px',
+    this.add.text(width / 2, height * 0.42, 'ARENA UNBOUND', {
+      fontSize: '48px',
       fontFamily: '"Segoe UI", "Noto Sans JP", sans-serif',
-      color: '#aaaaaa',
+      fontStyle: 'bold',
+      color: '#f0c040',
+      stroke: '#000000',
+      strokeThickness: 6,
+      shadow: { blur: 8, color: '#000000', fill: true }
     }).setOrigin(0.5);
 
     // メニューボタン

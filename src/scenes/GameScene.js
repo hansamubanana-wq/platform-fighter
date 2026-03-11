@@ -293,7 +293,7 @@ export class GameScene extends Phaser.Scene {
     this.p2ShieldBar = this.add.rectangle(p2X + panelW / 2 - 50, uiY + panelH - 16, 100, 8, 0xef5350).setOrigin(0, 0.5);
 
     // === 上部タイトル ===
-    const t3 = this.add.text(width / 2, 20, 'プラットフォームファイター', {
+    const t3 = this.add.text(width / 2, 20, 'STAR BRAWLERS: ARENA UNBOUND', {
       fontSize: '24px',
       fontFamily: '"Segoe UI", "Noto Sans JP", sans-serif',
       color: '#e0e0e0',

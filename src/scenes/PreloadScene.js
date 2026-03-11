@@ -101,7 +101,7 @@ export class PreloadScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    const title = this.add.text(width / 2, height / 2 - 60, 'プラットフォームファイター', {
+    const title = this.add.text(width / 2, height / 2 - 60, 'STAR BRAWLERS: ARENA UNBOUND', {
       fontSize: '28px',
       fontFamily: '"Segoe UI", "Noto Sans JP", sans-serif',
       color: '#e0e0e0',
