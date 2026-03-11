@@ -32,8 +32,11 @@ const config = {
   },
   scene: [PreloadScene, MenuScene, GameScene, PauseScene],
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.EXPAND,   // 黒帯なし・画面全体を使用
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 1920,
+    height: 1080,
+    expandParent: true,           // body を画面いっぱいに拡張
   },
 };
 
