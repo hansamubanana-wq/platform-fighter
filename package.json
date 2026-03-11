@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "canvas": "^3.2.1",
     "phaser": "^3.90.0",
     "vite": "^7.3.1"
   }

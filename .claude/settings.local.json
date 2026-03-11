@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npm uninstall canvas 2>&1)"
+    ]
+  }
+}
