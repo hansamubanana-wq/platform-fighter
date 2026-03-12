@@ -215,20 +215,42 @@ export class InputManager {
 
   /**
    * コントローラー振動 (Gamepad Vibration API)
+   * Chrome: vibrationActuator.playEffect('dual-rumble', ...)
+   * Firefox: hapticActuators[0].pulse(...)
    * @param {number} duration - 振動時間 (ms)
    * @param {number} weakMagnitude - 弱モーター強度 (0.0〜1.0)
    * @param {number} strongMagnitude - 強モーター強度 (0.0〜1.0)
    */
   vibrate(duration, weakMagnitude = 0.5, strongMagnitude = 0.5) {
     const pad = this.getGamepad();
-    if (!pad || !pad.vibrationActuator) return;
+    if (!pad) return;
+
+    // 初回接続時にデバッグ情報をコンソールに出力
+    if (!this._vibrateLogged) {
+      this._vibrateLogged = true;
+      console.log(`[P${this.playerIndex + 1} Gamepad] id: "${pad.id}"`);
+      console.log(`[P${this.playerIndex + 1} Gamepad] vibrationActuator:`, pad.vibrationActuator ?? 'なし');
+      console.log(`[P${this.playerIndex + 1} Gamepad] hapticActuators:`, pad.hapticActuators ?? 'なし');
+    }
+
     try {
-      pad.vibrationActuator.playEffect('dual-rumble', {
-        startDelay: 0,
-        duration,
-        weakMagnitude,
-        strongMagnitude,
-      });
+      // Chrome / Edge: dual-rumble
+      if (pad.vibrationActuator) {
+        pad.vibrationActuator.playEffect('dual-rumble', {
+          startDelay: 0,
+          duration,
+          weakMagnitude,
+          strongMagnitude,
+        });
+        return;
+      }
+
+      // Firefox: hapticActuators
+      if (pad.hapticActuators && pad.hapticActuators.length > 0) {
+        const magnitude = Math.max(weakMagnitude, strongMagnitude);
+        pad.hapticActuators[0].pulse(magnitude, duration);
+        return;
+      }
     } catch (e) {
       // 振動非対応環境では無視
     }
