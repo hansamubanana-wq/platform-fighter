@@ -4,6 +4,7 @@ import { Player, ATTACKS } from '../objects/Player.js';
 import { Stage } from '../objects/Stage.js';
 import { InputManager } from '../objects/InputManager.js';
 import { TouchControls, isTouchDevice } from '../objects/TouchControls.js';
+import { SoundManager } from '../objects/SoundManager.js';
 
 /**
  * GameScene - ステージ、プレイヤー、戦闘、UIを管理するメインシーン
@@ -43,9 +44,14 @@ export class GameScene extends Phaser.Scene {
       return obj;
     };
 
+    // === サウンド ===
+    this.soundManager = new SoundManager();
+
     // === 試合状態管理 ===
     this.matchStarted = false;
     this.matchOver = false;
+    this._p1PrevOnGround = true;
+    this._p2PrevOnGround = true;
 
     // === 背景演出 ===
     this.createBackground(width, height);
@@ -366,6 +372,10 @@ export class GameScene extends Phaser.Scene {
     // UI更新
     this.updateUI();
 
+    // 着地音検出
+    this._detectLanding(this.player1, '_p1PrevOnGround');
+    this._detectLanding(this.player2, '_p2PrevOnGround');
+
     // ジャンプカウントリセット
     this.resetJumpOnGround(this.player1);
     this.resetJumpOnGround(this.player2);
@@ -397,7 +407,11 @@ export class GameScene extends Phaser.Scene {
 
     // ジャンプ
     if (input.isJumpPressed()) {
+      const prevCount = player.jumpCount;
       player.jump();
+      if (player.jumpCount > prevCount) {
+        this.soundManager.playJump(prevCount > 0); // 2段目は違う音
+      }
     }
 
     // すり抜け床通過
@@ -408,6 +422,14 @@ export class GameScene extends Phaser.Scene {
     if (attackType) {
       const hitbox = player.performAttack(this, attackType);
       if (hitbox) {
+        const isSmash = attackType.startsWith('smash_');
+        this.soundManager.playAttack(isSmash);
+        // 攻撃側コントローラー振動 (軽め)
+        input.vibrate(
+          isSmash ? 120 : 70,
+          isSmash ? 0.25 : 0.15,
+          isSmash ? 0.15 : 0.08
+        );
         this.setupHitboxOverlap(hitbox, player);
       }
     }
@@ -491,6 +513,7 @@ export class GameScene extends Phaser.Scene {
    */
   setupHitboxOverlap(hitbox, attacker) {
     const target = attacker.playerIndex === 0 ? this.player2 : this.player1;
+    const targetInput = attacker.playerIndex === 0 ? this.input2 : this.input1;
     if (target.isDead) return;
 
     const overlap = this.physics.add.overlap(hitbox, target, () => {
@@ -502,6 +525,11 @@ export class GameScene extends Phaser.Scene {
         const broken = target.hitShield(attackData.damage);
         if (broken) {
           this.showStatusText('シールドブレイク！', target.x, target.y - 40, '#ff1744');
+          this.soundManager.playShieldBreak();
+          targetInput.vibrate(400, 0.9, 1.0);
+        } else {
+          this.soundManager.playShieldHit();
+          targetInput.vibrate(100, 0.3, 0.15);
         }
         // シールドノックバック (小さめ)
         const dir = target.x > attacker.x ? 1 : -1;
@@ -515,6 +543,15 @@ export class GameScene extends Phaser.Scene {
           attackData.knockbackAngle
         );
         this.createHitEffect(target.x, target.y);
+
+        // ヒット音・被弾側振動 (ノックバック量に応じて重さを変える)
+        const isHeavy = attackData.knockback >= 250;
+        this.soundManager.playHit(isHeavy);
+        targetInput.vibrate(
+          isHeavy ? 300 : 150,
+          isHeavy ? 0.7 : 0.4,
+          isHeavy ? 0.9 : 0.5
+        );
       }
 
       // ヒットボックス即破棄
@@ -588,12 +625,16 @@ export class GameScene extends Phaser.Scene {
     if (this.player1.checkRingOut(width, height)) {
       const alive = this.player1.respawn();
       this.showRingOutText('P1');
+      this.soundManager.playRingOut();
+      this.input1.vibrate(200, 0.6, 0.7);
       if (!alive) this.checkGameOver();
     }
 
     if (this.player2.checkRingOut(width, height)) {
       const alive = this.player2.respawn();
       this.showRingOutText('P2');
+      this.soundManager.playRingOut();
+      this.input2.vibrate(200, 0.6, 0.7);
       if (!alive) this.checkGameOver();
     }
   }
@@ -615,6 +656,7 @@ export class GameScene extends Phaser.Scene {
 
     if (winner) {
       this.matchOver = true;
+      this.soundManager.playVictory();
       this.showGameOver(winner);
     }
   }
@@ -748,6 +790,16 @@ export class GameScene extends Phaser.Scene {
     if (damage < 100) return '#ffeb3b';
     if (damage < 150) return '#ff9800';
     return '#ff1744';
+  }
+
+  /** 着地検出: 空中→地上の遷移時に着地音を再生 */
+  _detectLanding(player, prevKey) {
+    if (player.isDead) return;
+    const onGround = (player.body.blocked.down || player.body.touching.down) && player.body.velocity.y >= 0;
+    if (onGround && !this[prevKey]) {
+      this.soundManager.playLand();
+    }
+    this[prevKey] = onGround;
   }
 
   resetJumpOnGround(player) {

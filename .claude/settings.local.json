@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npm uninstall canvas 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npm run build 2>&1)"
+      "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npm run build 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npx vite build 2>&1 | tail -20)"
     ]
   }
 }

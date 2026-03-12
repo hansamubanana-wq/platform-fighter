@@ -212,4 +212,25 @@ export class InputManager {
     if (this.touchControls) return this.touchControls.isDownHeld();
     return false;
   }
+
+  /**
+   * コントローラー振動 (Gamepad Vibration API)
+   * @param {number} duration - 振動時間 (ms)
+   * @param {number} weakMagnitude - 弱モーター強度 (0.0〜1.0)
+   * @param {number} strongMagnitude - 強モーター強度 (0.0〜1.0)
+   */
+  vibrate(duration, weakMagnitude = 0.5, strongMagnitude = 0.5) {
+    const pad = this.getGamepad();
+    if (!pad || !pad.vibrationActuator) return;
+    try {
+      pad.vibrationActuator.playEffect('dual-rumble', {
+        startDelay: 0,
+        duration,
+        weakMagnitude,
+        strongMagnitude,
+      });
+    } catch (e) {
+      // 振動非対応環境では無視
+    }
+  }
 }
