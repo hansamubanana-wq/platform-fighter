@@ -225,18 +225,21 @@ export class InputManager {
     const pad = this.getGamepad();
     if (!pad) return;
 
+    // Phaser は Gamepad をラップしているので、ネイティブの Gamepad オブジェクトを取得
+    const nativePad = pad.pad || pad;
+
     // 初回接続時にデバッグ情報をコンソールに出力
     if (!this._vibrateLogged) {
       this._vibrateLogged = true;
-      console.log(`[P${this.playerIndex + 1} Gamepad] id: "${pad.id}"`);
-      console.log(`[P${this.playerIndex + 1} Gamepad] vibrationActuator:`, pad.vibrationActuator ?? 'なし');
-      console.log(`[P${this.playerIndex + 1} Gamepad] hapticActuators:`, pad.hapticActuators ?? 'なし');
+      console.log(`[P${this.playerIndex + 1} Gamepad] id: "${nativePad.id}"`);
+      console.log(`[P${this.playerIndex + 1} Gamepad] vibrationActuator:`, nativePad.vibrationActuator ?? 'なし');
+      console.log(`[P${this.playerIndex + 1} Gamepad] hapticActuators:`, nativePad.hapticActuators ?? 'なし');
     }
 
     try {
       // Chrome / Edge: dual-rumble
-      if (pad.vibrationActuator) {
-        pad.vibrationActuator.playEffect('dual-rumble', {
+      if (nativePad.vibrationActuator) {
+        nativePad.vibrationActuator.playEffect('dual-rumble', {
           startDelay: 0,
           duration,
           weakMagnitude,
@@ -246,9 +249,9 @@ export class InputManager {
       }
 
       // Firefox: hapticActuators
-      if (pad.hapticActuators && pad.hapticActuators.length > 0) {
+      if (nativePad.hapticActuators && nativePad.hapticActuators.length > 0) {
         const magnitude = Math.max(weakMagnitude, strongMagnitude);
-        pad.hapticActuators[0].pulse(magnitude, duration);
+        nativePad.hapticActuators[0].pulse(magnitude, duration);
         return;
       }
     } catch (e) {
