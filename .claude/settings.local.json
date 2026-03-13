@@ -6,7 +6,8 @@
       "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npx vite build 2>&1 | tail -20)",
       "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npx vite build 2>&1 | tail -5)",
       "Bash(ls \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\\\\public\\\\icons\\\\\" 2>/dev/null || echo \"no icons dir\")",
-      "Bash(cd C:/Users/Soichi/.gemini/antigravity/scratch/platform-fighter && npx vite build 2>&1 | tail -3)"
+      "Bash(cd C:/Users/Soichi/.gemini/antigravity/scratch/platform-fighter && npx vite build 2>&1 | tail -3)",
+      "Bash(cd \"C:\\\\Users\\\\Soichi\\\\.gemini\\\\antigravity\\\\scratch\\\\platform-fighter\" && npm run build 2>&1 | tail -20)"
     ]
   }
 }
