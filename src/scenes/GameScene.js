@@ -18,7 +18,9 @@ export class GameScene extends Phaser.Scene {
     this.cpuMode = data ? data.cpuMode : false;
     // タッチデバイスでは常にCPU対戦 (2人同時タッチ操作は非現実的)
     if (isTouchDevice) this.cpuMode = true;
-    this.cpuTimer = 0; // AI思考用タイマー
+    this.cpuTimer = 0;    // AI思考用タイマー
+    this.cpuMoveDir = 0;  // 毎フレーム適用する移動方向キャッシュ
+    this.cpuNextThink = 80 + Math.random() * 80; // 次の思考までのms
   }
 
   create() {
@@ -436,75 +438,142 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * 簡易的なCPU (AI) ロジック
+   * CPU (AI) ロジック - 状態ベースの改良版
    */
   updateCPU(delta) {
     const p1 = this.player1;
     const cpu = this.player2;
+    if (cpu.isDead || p1.isDead) return;
 
-    if (cpu.isDead || p1.isDead || cpu.isAttacking || cpu.shieldStun > 0 || cpu.hitStun > 0) return;
+    const { width, height } = this.cameras.main;
+    const cpuOnGround = cpu.body.blocked.down || cpu.body.touching.down;
 
+    // === 復帰最優先: 毎フレーム判定 ===
+    const offMargin = 130;
+    const isOffStage = cpu.x < offMargin || cpu.x > width - offMargin || cpu.y > height - 60;
+    if (isOffStage) {
+      this._cpuDoRecover(cpu, width, cpuOnGround);
+      return;
+    }
+
+    // やられ中 / 硬直中は移動のみ
+    if (cpu.hitStun > 0) return;
+
+    // 毎フレーム: 前回決定した移動方向を適用
+    if (!cpu.isAttacking && !cpu.shieldBroken && cpu.shieldStun <= 0) {
+      cpu.handleMovement(this.cpuMoveDir);
+    }
+
+    // 思考インターバル (可変: 80～160ms)
     this.cpuTimer += delta;
+    if (this.cpuTimer < this.cpuNextThink) return;
+    this.cpuTimer = 0;
+    this.cpuNextThink = 80 + Math.random() * 80;
 
-    // 毎フレームではなく一定間隔で思考を更新する (200ms程度)
-    if (this.cpuTimer > 200) {
-      this.cpuTimer = 0;
+    if (cpu.isAttacking || cpu.shieldStun > 0 || cpu.shieldBroken) return;
 
-      const distX = p1.x - cpu.x;
-      const distY = p1.y - cpu.y;
-      const absDistX = Math.abs(distX);
-      const absDistY = Math.abs(distY);
+    const dx = p1.x - cpu.x;
+    const dy = p1.y - cpu.y;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    const p1HighDmg = p1.damage >= 80; // スマッシュでとどめ狙い
 
-      // --- 行動決定 ---
-      // 1. リングアウトしそうなら復帰を最優先
-      if (cpu.y > this.cameras.main.height + 50 || cpu.x < 50 || cpu.x > this.cameras.main.width - 50) {
-        if (cpu.y > p1.y) cpu.jump(); // 上へ
-        cpu.handleMovement(cpu.x < this.cameras.main.width / 2 ? 1 : -1);
-        
-        // 空中ジャンプが尽きたら上スマッシュ（復帰技）を試みる
-        if (cpu.jumpCount >= cpu.maxJumps && Math.random() < 0.5) {
-          const hitbox = cpu.performAttack(this, 'smash_up');
-          if (hitbox) this.setupHitboxOverlap(hitbox, cpu);
+    // 常にp1の方向を向く
+    cpu.facingRight = dx > 0;
+    cpu.setFlipX(!cpu.facingRight);
+
+    // === p1がオフステージ: エッジガード ===
+    const p1OffStage = p1.x < offMargin || p1.x > width - offMargin || p1.y > height - 60;
+    if (p1OffStage && cpuOnGround && Math.random() < 0.6) {
+      const edgeX = p1.x < width / 2 ? offMargin + 60 : width - offMargin - 60;
+      this.cpuMoveDir = cpu.x < edgeX ? 1 : -1;
+      if (adx < 200 && Math.random() < 0.5) {
+        const hitbox = cpu.performAttack(this, 'smash_forward');
+        if (hitbox) {
+          this.soundManager.playAttack(true);
+          this.setupHitboxOverlap(hitbox, cpu);
         }
+      }
+      return;
+    }
+
+    // === 近接戦 ===
+    if (adx < 90 && ady < 75) {
+      this.cpuMoveDir = 0;
+      cpu.stopShielding();
+
+      // p1が攻撃中 → シールドで反応
+      if (p1.isAttacking && cpu.shieldHP > 35 && Math.random() < 0.5) {
+        cpu.startShielding();
         return;
       }
 
-      // 2. 攻撃レンジ (Xが近く、Yも近い場合)
-      if (absDistX < 80 && absDistY < 60) {
-        cpu.handleMovement(0);
-        
-        // プレイヤーの方向を向く
-        cpu.facingRight = distX > 0;
-        cpu.setFlipX(!cpu.facingRight);
-
-        // ガードするか攻撃するかランダム
-        if (p1.isAttacking && cpu.shieldHP > 30 && Math.random() < 0.6) {
-          cpu.startShielding();
-        } else {
-          cpu.stopShielding();
-          // ランダムな攻撃
-          const attacks = ['neutral', 'forward', 'down', 'smash_forward', 'smash_down'];
-          const attackType = Phaser.Math.RND.pick(attacks);
-          const hitbox = cpu.performAttack(this, attackType);
-          if (hitbox) this.setupHitboxOverlap(hitbox, cpu);
-        }
-      } 
-      // 3. 離れている場合: 相手に近づく
-      else {
-        cpu.stopShielding();
-
-        // 相手が上にいるならジャンプ
-        if (distY < -80 && absDistX < 150 && Math.random() < 0.4) {
-          cpu.jump();
-        }
-
-        // 左右移動
-        if (absDistX > 40) {
-          cpu.handleMovement(distX > 0 ? 1 : -1);
-        } else {
-          cpu.handleMovement(0);
-        }
+      let attackType;
+      if (!cpuOnGround) {
+        // 空中攻撃: 位置に応じて使い分け
+        if (dy < -30) attackType = 'up';
+        else if (dy > 40) attackType = 'down'; // 空下メテオ
+        else attackType = Phaser.Math.RND.pick(['neutral', 'forward', 'back']);
+      } else if (p1HighDmg) {
+        // ダメージ高い → 吹き飛ばし狙い
+        if (dy < -40) attackType = 'smash_up';
+        else attackType = Phaser.Math.RND.pick(['smash_forward', 'smash_neutral', 'smash_down']);
+      } else {
+        // 通常コンボ
+        if (dy < -40) attackType = Phaser.Math.RND.pick(['up', 'smash_up']);
+        else attackType = Phaser.Math.RND.pick(['neutral', 'forward', 'down', 'smash_forward']);
       }
+
+      const hitbox = cpu.performAttack(this, attackType);
+      if (hitbox) {
+        this.soundManager.playAttack(attackType.startsWith('smash_'));
+        this.setupHitboxOverlap(hitbox, cpu);
+      }
+      return;
+    }
+
+    // === 中距離: ダッシュ攻撃 ===
+    if (adx < 220 && adx > 80 && ady < 55 && cpuOnGround && Math.random() < 0.35) {
+      this.cpuMoveDir = dx > 0 ? 1 : -1;
+      const hitbox = cpu.performAttack(this, 'smash_forward');
+      if (hitbox) {
+        this.soundManager.playAttack(true);
+        this.setupHitboxOverlap(hitbox, cpu);
+      }
+      return;
+    }
+
+    // === 接近 ===
+    cpu.stopShielding();
+
+    // 相手が上空 → ジャンプで追う
+    if (dy < -120 && adx < 220 && Math.random() < 0.55) {
+      if (cpuOnGround || cpu.jumpCount < cpu.maxJumps) {
+        cpu.jump();
+      }
+    }
+
+    this.cpuMoveDir = adx > 55 ? (dx > 0 ? 1 : -1) : 0;
+  }
+
+  /**
+   * CPU復帰ロジック
+   */
+  _cpuDoRecover(cpu, width, cpuOnGround) {
+    if (cpu.hitStun > 0) return;
+    const centerX = width / 2;
+    const dir = cpu.x < centerX ? 1 : -1;
+    cpu.handleMovement(dir);
+    this.cpuMoveDir = dir;
+    cpu.facingRight = dir > 0;
+    cpu.setFlipX(!cpu.facingRight);
+
+    if (!cpuOnGround && cpu.jumpCount < cpu.maxJumps) {
+      cpu.jump();
+    }
+    if (cpu.jumpCount >= cpu.maxJumps && !cpu.isAttacking && cpu.attackCooldown <= 0) {
+      const hitbox = cpu.performAttack(this, 'smash_up');
+      if (hitbox) this.setupHitboxOverlap(hitbox, cpu);
     }
   }
 
